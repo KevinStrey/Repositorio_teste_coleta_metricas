@@ -14,7 +14,7 @@ import javafx.stage.Stage;
 public class Main extends Application {
     private static final int SIZE = 8;
 
-    private final String[][] board = new String[SIZE][SIZE];
+    private final ChessBoard board = new ChessBoard();
     private final Button[][] cells = new Button[SIZE][SIZE];
     private final Label turnLabel = new Label();
 
@@ -28,8 +28,6 @@ public class Main extends Application {
 
     @Override
     public void start(Stage stage) {
-        initBoard();
-
         BorderPane root = new BorderPane();
         root.setPadding(new Insets(12));
 
@@ -71,25 +69,8 @@ public class Main extends Application {
         stage.show();
     }
 
-    private void initBoard() {
-        String[] backRank = {"R", "N", "B", "Q", "K", "B", "N", "R"};
-
-        for (int row = 0; row < SIZE; row++) {
-            for (int col = 0; col < SIZE; col++) {
-                board[row][col] = null;
-            }
-        }
-
-        for (int col = 0; col < SIZE; col++) {
-            board[0][col] = "b" + backRank[col];
-            board[1][col] = "bP";
-            board[6][col] = "wP";
-            board[7][col] = "w" + backRank[col];
-        }
-    }
-
     private void handleCellClick(int row, int col) {
-        String piece = board[row][col];
+        String piece = board.getPiece(row, col);
 
         if (selectedRow == -1) {
             if (piece != null && piece.charAt(0) == currentPlayer) {
@@ -118,21 +99,18 @@ public class Main extends Application {
     }
 
     private void moveSelectedPieceTo(int row, int col) {
-        String moving = board[selectedRow][selectedCol];
-        String target = board[row][col];
-
-        board[row][col] = moving;
-        board[selectedRow][selectedCol] = null;
+        String moving = board.getPiece(selectedRow, selectedCol);
+        String target = board.movePiece(selectedRow, selectedCol, row, col);
 
         selectedRow = -1;
         selectedCol = -1;
 
         if (target != null && target.endsWith("K")) {
             showGameOver(moving.charAt(0), "King captured.");
-            initBoard();
-        } else if (isKingCapturable(moving.charAt(0))) {
+            board.reset();
+        } else if (board.isKingCapturable(moving.charAt(0))) {
             showGameOver(moving.charAt(0), "Checkmate (simplified). King can be captured next move.");
-            initBoard();
+            board.reset();
         } else {
             currentPlayer = (currentPlayer == 'w') ? 'b' : 'w';
         }
@@ -145,9 +123,9 @@ public class Main extends Application {
         for (int row = 0; row < SIZE; row++) {
             for (int col = 0; col < SIZE; col++) {
                 Button cell = cells[row][col];
-                String piece = board[row][col];
+                String piece = board.getPiece(row, col);
 
-                cell.setText(pieceToSymbol(piece));
+                cell.setText(PieceSymbols.fromPiece(piece));
                 cell.setTextFill(piece != null && piece.charAt(0) == 'w' ? Color.BLACK : Color.DARKRED);
 
                 boolean isLight = (row + col) % 2 == 0;
@@ -163,117 +141,6 @@ public class Main extends Application {
     private void updateTurnLabel() {
         String player = currentPlayer == 'w' ? "White" : "Black";
         turnLabel.setText("Turn: " + player);
-    }
-
-    private boolean isKingCapturable(char attacker) {
-        char defender = attacker == 'w' ? 'b' : 'w';
-        int[] kingPos = findKing(defender);
-        if (kingPos == null) {
-            return false;
-        }
-        return isSquareUnderAttack(attacker, kingPos[0], kingPos[1]);
-    }
-
-    private int[] findKing(char color) {
-        for (int row = 0; row < SIZE; row++) {
-            for (int col = 0; col < SIZE; col++) {
-                String piece = board[row][col];
-                if (piece != null && piece.charAt(0) == color && piece.charAt(1) == 'K') {
-                    return new int[] {row, col};
-                }
-            }
-        }
-        return null;
-    }
-
-    private boolean isSquareUnderAttack(char attacker, int row, int col) {
-        for (int r = 0; r < SIZE; r++) {
-            for (int c = 0; c < SIZE; c++) {
-                String piece = board[r][c];
-                if (piece != null && piece.charAt(0) == attacker) {
-                    if (canAttack(piece, r, c, row, col)) {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
-    }
-
-    private boolean canAttack(String piece, int fromRow, int fromCol, int toRow, int toCol) {
-        char color = piece.charAt(0);
-        char type = piece.charAt(1);
-        int dr = toRow - fromRow;
-        int dc = toCol - fromCol;
-
-        switch (type) {
-            case 'P': {
-                int direction = color == 'w' ? -1 : 1;
-                return dr == direction && Math.abs(dc) == 1;
-            }
-            case 'N':
-                return (Math.abs(dr) == 2 && Math.abs(dc) == 1)
-                        || (Math.abs(dr) == 1 && Math.abs(dc) == 2);
-            case 'B':
-                return Math.abs(dr) == Math.abs(dc) && isPathClear(fromRow, fromCol, toRow, toCol);
-            case 'R':
-                return (dr == 0 || dc == 0) && isPathClear(fromRow, fromCol, toRow, toCol);
-            case 'Q':
-                return ((dr == 0 || dc == 0) || (Math.abs(dr) == Math.abs(dc)))
-                        && isPathClear(fromRow, fromCol, toRow, toCol);
-            case 'K':
-                return Math.abs(dr) <= 1 && Math.abs(dc) <= 1;
-            default:
-                return false;
-        }
-    }
-
-    private boolean isPathClear(int fromRow, int fromCol, int toRow, int toCol) {
-        int stepRow = Integer.compare(toRow, fromRow);
-        int stepCol = Integer.compare(toCol, fromCol);
-        int r = fromRow + stepRow;
-        int c = fromCol + stepCol;
-
-        while (r != toRow || c != toCol) {
-            if (board[r][c] != null) {
-                return false;
-            }
-            r += stepRow;
-            c += stepCol;
-        }
-
-        return true;
-    }
-
-    private String pieceToSymbol(String piece) {
-        if (piece == null || piece.length() < 2) {
-            return "";
-        }
-
-        char color = piece.charAt(0);
-        char type = piece.charAt(1);
-
-        if (color == 'w') {
-            return switch (type) {
-                case 'K' -> "♔";
-                case 'Q' -> "♕";
-                case 'R' -> "♖";
-                case 'B' -> "♗";
-                case 'N' -> "♘";
-                case 'P' -> "♙";
-                default -> "";
-            };
-        }
-
-        return switch (type) {
-            case 'K' -> "♚";
-            case 'Q' -> "♛";
-            case 'R' -> "♜";
-            case 'B' -> "♝";
-            case 'N' -> "♞";
-            case 'P' -> "♟";
-            default -> "";
-        };
     }
 
     private void showGameOver(char winner, String reason) {
