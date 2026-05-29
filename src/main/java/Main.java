@@ -44,7 +44,7 @@ public class Main extends Application {
                 cell.setMinSize(60, 60);
                 cell.setMaxSize(60, 60);
                 cell.setFocusTraversable(false);
-                cell.setFont(Font.font("Monospaced", 18));
+                cell.setFont(Font.font("DejaVu Sans", 24));
 
                 int r = row;
                 int c = col;
@@ -144,7 +144,7 @@ public class Main extends Application {
                 Button cell = cells[row][col];
                 String piece = board[row][col];
 
-                cell.setText(piece == null ? "" : piece);
+                cell.setText(pieceToSymbol(piece));
                 cell.setTextFill(piece != null && piece.charAt(0) == 'w' ? Color.BLACK : Color.DARKRED);
 
                 boolean isLight = (row + col) % 2 == 0;
@@ -160,6 +160,37 @@ public class Main extends Application {
     private void updateTurnLabel() {
         String player = currentPlayer == 'w' ? "White" : "Black";
         turnLabel.setText("Turn: " + player);
+    }
+
+    private String pieceToSymbol(String piece) {
+        if (piece == null || piece.length() < 2) {
+            return "";
+        }
+
+        char color = piece.charAt(0);
+        char type = piece.charAt(1);
+
+        if (color == 'w') {
+            return switch (type) {
+                case 'K' -> "♔";
+                case 'Q' -> "♕";
+                case 'R' -> "♖";
+                case 'B' -> "♗";
+                case 'N' -> "♘";
+                case 'P' -> "♙";
+                default -> "";
+            };
+        }
+
+        return switch (type) {
+            case 'K' -> "♚";
+            case 'Q' -> "♛";
+            case 'R' -> "♜";
+            case 'B' -> "♝";
+            case 'N' -> "♞";
+            case 'P' -> "♟";
+            default -> "";
+        };
     }
 
     private void showGameOver(char winner) {
